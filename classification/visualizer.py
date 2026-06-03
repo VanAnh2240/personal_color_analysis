@@ -100,25 +100,25 @@ def draw_dominants_strip(
 # Season palette strip
 # ─────────────────────────────────────────────────────────────────────────────
 
-def draw_palette_strip(
-    season,          # SeasonPalette
-    total_width: int = 320,
-    height: int = 50,
-) -> np.ndarray:
-    """Horizontal strip of all season palette colours."""
-    colors = season.colors
-    n      = len(colors)
-    sw_w   = total_width // n
-    actual_w = sw_w * n
-    strip  = np.zeros((height, actual_w, 3), dtype=np.uint8)
+# def draw_palette_strip(
+#     season,          # SeasonPalette
+#     total_width: int = 320,
+#     height: int = 50,
+# ) -> np.ndarray:
+#     """Horizontal strip of all season palette colours."""
+#     colors = season.colors
+#     n      = len(colors)
+#     sw_w   = total_width // n
+#     actual_w = sw_w * n
+#     strip  = np.zeros((height, actual_w, 3), dtype=np.uint8)
 
-    for i, rgb in enumerate(colors):
-        x0, x1 = i * sw_w, (i + 1) * sw_w
-        strip[:, x0:x1] = _to_bgr(rgb)
-        if i > 0:
-            strip[:, x0:x0 + 1] = (15, 15, 15)
+#     for i, rgb in enumerate(colors):
+#         x0, x1 = i * sw_w, (i + 1) * sw_w
+#         strip[:, x0:x1] = _to_bgr(rgb)
+#         if i > 0:
+#             strip[:, x0:x0 + 1] = (15, 15, 15)
 
-    return strip
+#     return strip
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -179,12 +179,15 @@ def save_result_figure(
     output_path: str,
     face_height: int = 380,
 ) -> None:
-   
+
     annotated = draw_result_overlay(face_bgr, result, target_height=face_height)
     W = annotated.shape[1]
 
-    dom_strip = draw_dominants_strip(result.dominants, total_width=W, height=90)
-    pal_strip = draw_palette_strip(result.season,      total_width=W, height=52)
+    dom_strip = draw_dominants_strip(
+        result.dominants,
+        total_width=W,
+        height=90
+    )
 
     def _fit_w(img, target):
         if img.shape[1] == target:
@@ -195,14 +198,10 @@ def save_result_figure(
         return img[:, :target]
 
     dom_strip = _fit_w(dom_strip, W)
-    pal_strip = _fit_w(pal_strip, W)
 
     figure = np.vstack([
         annotated,
-        _label_bar("Dominant colours", W),
         dom_strip,
-        _label_bar(f"Season palette : {result.season.name}", W),
-        pal_strip,
     ])
 
     cv2.imwrite(output_path, figure)

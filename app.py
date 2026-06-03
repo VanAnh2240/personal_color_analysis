@@ -161,21 +161,12 @@ def main():
 
     # STEP 6 — palette result figure
     print(">>> [STEP 6] Palette result figure...")
-    from classification.visualizer import draw_result_overlay, draw_palette_strip
-
-    annotated = draw_result_overlay(bgr, result)
-    pal_strip = draw_palette_strip(result.season)
-
-    # fix width mismatch
-    pal_strip = cv2.resize(pal_strip, (annotated.shape[1], 50))
-
-    out = np.vstack([annotated, pal_strip])
 
     if args.save:
         save_result_figure(bgr, result, args.save)
         print(f"    Saved → {args.save}")
     else:
-        cv2.imwrite("palette_result.png", out)
+        save_result_figure(bgr, result, "palette_result.png")
         print("    Saved → palette_result.png")
 
     print(f">>> TOTAL TIME: {time.time()-t_start:.2f}s")
