@@ -1,22 +1,9 @@
 """
 train.py  –  Training script for DeepLabV3 / ClipUNet on LaPa.
-
-FIXES vs original:
-  1. ClipUNet: unfreeze CLIP với differential LR (encoder=LR/10, decoder=LR)
-  2. Class weights cho LaPa (inverse-frequency) → fix mIoU thấp do class imbalance
-  3. IMG_SIZE khuyến nghị 224 (CLIP pretrain res) thay vì 512
-  4. Linear warmup 5 epoch + cosine decay
-  5. Sanity-check data pipeline ở đầu mỗi run
-  6. EarlyStopping (patience=15) tránh lãng phí compute khi plateau
-
-LaPa split reality
-──────────────────
   train/  images + labels  → supervised training
   val/    images ONLY      → no labels → inference / visual preview only
   test/   images + labels  → final evaluation  (run evaluate.py separately)
 
-Usage
-─────
   python train.py --model clipunet --epochs 50
   python train.py --model clipunet --epochs 50 --kfold
   python train.py --model deeplab  --epochs 50
@@ -47,11 +34,6 @@ from src.utils   import save_checkpoint, load_checkpoint, save_best, log_epoch
 from torch.utils.data import DataLoader
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# LaPa class weights (inverse-frequency, tính từ toàn bộ training set)
-# Các class nhỏ (eyes, lips, eyebrows) được weight cao hơn để tránh
-# model chỉ predict skin/background và đạt pixel_acc cao nhưng mIoU thấp.
-# ─────────────────────────────────────────────────────────────────────────────
 LAPA_CLASS_WEIGHTS = torch.tensor([
     0.5,   # 0  background   (~35% pixels)
     0.7,   # 1  skin         (~30%)

@@ -1,21 +1,5 @@
 """
-app.py  (fixed v2)
-==================
-End-to-end CLI: face image → DeepLab segmentation → seg visualisation → palette classification.
-
-Usage
------
-    # Full pipeline, save both outputs
-    python app.py --img portrait.jpg --checkpoint checkpoints/system_1_deeplabv3.pth \\
-        --hair_label 10 --save palette_result.png --save_seg seg_result.png
-
-    # Show seg overlay in a window (no --save_seg → opens cv2 window)
-    python app.py --img portrait.jpg --checkpoint checkpoints/system_1_deeplabv3.pth \\
-        --hair_label 10
-
-    # Skip model inference, load pre-saved mask .npy
-    python app.py --img portrait.jpg --seg_npy mask.npy \\
-        --hair_label 10 --save result.png
+app.py
 """
 
 import argparse
@@ -39,10 +23,6 @@ from config import RESULT_IMG
 DEFAULT_CHECKPOINT = "checkpoints/system_1_deeplabv3.pth"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Model loading
-# ─────────────────────────────────────────────────────────────────────────────
-
 def load_model(checkpoint_path: str, num_classes: int = 11, device: str = "cpu"):
     from src.models.system_1_deeplabv3 import DeepLabV3
     model = DeepLabV3(num_classes=num_classes)
@@ -51,11 +31,6 @@ def load_model(checkpoint_path: str, num_classes: int = 11, device: str = "cpu")
     model.load_state_dict(state_dict)
     model.to(device).eval()
     return model
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Preprocessing / inference
-# ─────────────────────────────────────────────────────────────────────────────
 
 _MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
 _STD  = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
@@ -80,17 +55,12 @@ def segment(model, bgr_img: np.ndarray, device: str = "cpu") -> np.ndarray:
     return logits.argmax(dim=1).squeeze(0).cpu().numpy().astype(np.uint8)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Main
-# ─────────────────────────────────────────────────────────────────────────────
-
 def main():
     parser = argparse.ArgumentParser(description="Personal Colour Analysis + Seg Viz")
     parser.add_argument("--img",         required=True)
     parser.add_argument("--checkpoint",  default=DEFAULT_CHECKPOINT)
     parser.add_argument("--seg_npy",     default=None,
                         help="Pre-saved segmentation .npy mask — skips model inference")
-    # FIX: default=None so flags are truly optional (was "palette_result.png" / "seg_result.png")
     parser.add_argument("--save",        default=f"{RESULT_IMG}/palette.png", help="Save palette result PNG")
     parser.add_argument("--save_seg",    default=f"{RESULT_IMG}/seg.png", help="Save segmentation figure PNG")
     parser.add_argument("--device",      default="cpu")
@@ -104,14 +74,14 @@ def main():
 
     t_start = time.time()
 
-    # STEP 1 — load image
+    # STEP 1: load image
     print(">>> [STEP 1] Loading image...")
     bgr = cv2.imread(args.img)
     if bgr is None:
         sys.exit(f"[ERROR] Cannot read image: {args.img}")
     print(f"    Shape: {bgr.shape} | {time.time()-t_start:.2f}s")
 
-    # STEP 2 — segmentation
+    # STEP 2: segmentation
     if args.seg_npy:
         print(f">>> [STEP 2] Loading pre-saved mask: {args.seg_npy}")
         seg_mask = np.load(args.seg_npy)
@@ -130,7 +100,7 @@ def main():
 
     print(f"    Unique labels: {np.unique(seg_mask)}")
 
-    # STEP 3 — segmentation visualisation
+    # STEP 3: egmentation visualisation
     print(">>> [STEP 4] Segmentation visualisation...")
     if args.save_seg:
         save_seg_figure(bgr, seg_mask, output_path=args.save_seg, alpha=0.55)
@@ -138,7 +108,7 @@ def main():
     else:
         show_seg_window(bgr, seg_mask)
 
-    # STEP 4 — palette classification
+    # STEP 4: palette classification
     print(">>> [STEP 5] Palette classification...")
     clf = PaletteClassifier(
         skin_chroma_thresh=args.chroma_thresh,
@@ -159,7 +129,7 @@ def main():
         print(f"    {region:6s} → {rgb}")
     print("=" * 52 + "\n")
 
-    # STEP 6 — palette result figure
+    # STEP 6: palette result figure
     print(">>> [STEP 6] Palette result figure...")
 
     if args.save:

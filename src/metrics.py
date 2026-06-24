@@ -1,14 +1,5 @@
 """
 src/metrics.py
-Segmentation evaluation metrics:
-  • per-class IoU
-  • mean IoU  (mIoU)
-  • pixel accuracy
-  • mean pixel accuracy
-
-Designed to accumulate over batches (streaming) with reset(),
-then compute() final numbers at epoch end — like torchmetrics style
-but dependency-free.
 """
 
 import numpy as np
@@ -17,19 +8,6 @@ from config import LAPA_NUM_CLASSES, LAPA_CLASS_NAMES
 
 
 class SegMetrics:
-    """
-    Confusion-matrix-based streaming metrics for semantic segmentation.
-
-    Usage
-    -----
-    m = SegMetrics(num_classes=11)
-    for batch in loader:
-        preds = model(imgs).argmax(1)   # (B, H, W)
-        m.update(preds, masks)
-    results = m.compute()
-    m.reset()
-    """
-
     def __init__(self, num_classes: int = LAPA_NUM_CLASSES,
                  ignore_index: int = 255):
         self.num_classes   = num_classes
@@ -42,18 +20,12 @@ class SegMetrics:
         )
 
     def update(self, preds: torch.Tensor, targets: torch.Tensor):
-        """
-        preds   : (B, H, W) int tensor — predicted class index
-        targets : (B, H, W) int tensor — ground-truth class index
-        """
         p = preds.cpu().numpy().astype(np.int64).flatten()
         t = targets.cpu().numpy().astype(np.int64).flatten()
 
-        # Remove ignored pixels
         mask = t != self.ignore_index
         p, t = p[mask], t[mask]
 
-        # Clamp out-of-range predictions
         valid = (p >= 0) & (p < self.num_classes) & \
                 (t >= 0) & (t < self.num_classes)
         p, t = p[valid], t[valid]
@@ -97,11 +69,7 @@ class SegMetrics:
             print(f"  {cls:>15s}: {val:.4f}  {bar}")
 
 
-# ──────────────────────────────────────────────
-# Loss helpers
-# ──────────────────────────────────────────────
 class DiceLoss(torch.nn.Module):
-    """Soft Dice loss for multi-class segmentation."""
     def __init__(self, num_classes=LAPA_NUM_CLASSES, smooth=1.0):
         super().__init__()
         self.C      = num_classes
@@ -110,7 +78,6 @@ class DiceLoss(torch.nn.Module):
     def forward(self, logits: torch.Tensor,
                 targets: torch.Tensor) -> torch.Tensor:
         probs = torch.softmax(logits, dim=1)   # (B, C, H, W)
-        # One-hot encode targets
         t_oh  = torch.zeros_like(probs)
         t_oh.scatter_(1, targets.unsqueeze(1), 1)
 

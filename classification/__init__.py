@@ -1,8 +1,5 @@
 """
-classification/__init__.py  (fixed v2)
-
-Bỏ anti-pattern "PaletteClassifier = None" và try/except ẩn ImportError.
-Nếu dependencies chưa cài, lỗi sẽ nổi rõ khi import thay vì im lặng.
+classification/__init__.py  
 """
 
 from .palettes import ALL_SEASONS, SPRING, SUMMER, AUTUMN, WINTER, SeasonPalette

@@ -78,8 +78,7 @@ async def analyze(file: UploadFile = File(...)):
     # ===== CLASSIFICATION =====
     clf = PaletteClassifier(hair_label=10)
     result = clf.classify(bgr, seg_mask)
-
-    # ===== RENDER IMAGE IN MEMORY (NO FILE) =====
+    
     img = save_result_figure(bgr, result, return_image=True)
 
     buffer = io.BytesIO()

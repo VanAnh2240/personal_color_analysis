@@ -138,3 +138,7 @@ results/
 
 # Logs
 *.log
+*.png
+*.jpg
+*.ipynb
+app_img/

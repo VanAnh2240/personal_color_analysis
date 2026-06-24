@@ -1,13 +1,5 @@
 """
-classification/classifier.py  (fixed v3)
-
-Fixes vs v2:
-  - classify_hue nhận skin_rgb (không phải lips_rgb) — theo paper DSCAS.
-  - Default thresholds cập nhật theo color_utils v3:
-      skin_chroma_thresh : 60.0  (was 127)
-      contrast_thresh    : 65.0  (was 127)
-      value_thresh       : 127.0 (giữ nguyên)
-  - Guard None cho từng metric độc lập (giữ từ v2).
+classification/classifier.py
 """
 
 from __future__ import annotations
@@ -51,9 +43,9 @@ class PaletteClassifier:
     def __init__(
         self,
         k_clusters: int = 3,
-        skin_chroma_thresh: float = 60.0,    # FIX v3: was 127
+        skin_chroma_thresh: float = 60.0,   
         value_thresh:       float = 127.0,
-        contrast_thresh:    float = 65.0,    # FIX v3: was 127
+        contrast_thresh:    float = 65.0,  
         hair_label:  int   = LABEL_HAIR,
         lips_label:  tuple = (LABEL_UPPER_LIP, LABEL_LOWER_LIP),
         skin_label:  int   = LABEL_SKIN,
@@ -96,6 +88,37 @@ class PaletteClassifier:
 
         print(">>> [Classifier] Computing metrics...")
 
+        # ===== CHROMA DEBUG =====
+        sat_fn = classify_chroma.__globals__["_hsv_saturation_255"]
+
+        skin_sat = sat_fn(skin_rgb) if skin_rgb is not None else None
+        eye_sat  = sat_fn(eyes_rgb) if eyes_rgb is not None else None
+        lip_sat  = sat_fn(lips_rgb) if lips_rgb is not None else None
+
+        weights = []
+        values  = []
+
+        if skin_sat is not None:
+            values.append(skin_sat)
+            weights.append(0.50)
+
+        if eye_sat is not None:
+            values.append(eye_sat)
+            weights.append(0.30)
+
+        if lip_sat is not None:
+            values.append(lip_sat)
+            weights.append(0.20)
+
+        avg_sat = sum(v*w for v,w in zip(values,weights)) / sum(weights)
+
+        print("\n----- CHROMA DEBUG -----")
+        print(f"skin_sat = {skin_sat:.2f}")
+        print(f"eye_sat  = {eye_sat:.2f}")
+        print(f"lip_sat  = {lip_sat:.2f}")
+        print(f"avg_sat  = {avg_sat:.2f}")
+        print("------------------------\n")
+
         print("\n========== RAW METRICS DEBUG ==========")
         if skin_rgb is not None:
             sat = classify_chroma.__globals__["_hsv_saturation_255"](skin_rgb)
@@ -115,22 +138,20 @@ class PaletteClassifier:
             print(f"  val_eyes: {val_eyes:.2f}")
 
         if hair_rgb is not None and eyes_rgb is not None:
-            contrast_raw = abs(val_hair - val_eyes)
+            contrast_raw = abs(val_skin - val_hair)
             print(f"CONTRAST RAW: {contrast_raw:.2f}")
 
         print("======================================\n")
-
-        # FIX v3: hue dùng skin_rgb (không phải lips_rgb)
         hue = classify_hue(skin_rgb) if skin_rgb is not None else None
 
-        chroma = (classify_chroma(skin_rgb, threshold=self.skin_chroma_thresh)
+        chroma = (classify_chroma(skin_rgb, eyes_rgb, lips_rgb)
                   if skin_rgb is not None else None)
 
-        value = (classify_value(skin_rgb, hair_rgb, eyes_rgb, threshold=self.value_thresh)
+        value = (classify_value(skin_rgb)
                  if (skin_rgb is not None and eyes_rgb is not None) else None)
 
-        contrast = (classify_contrast(hair_rgb, eyes_rgb, threshold=self.contrast_thresh)
-                    if eyes_rgb is not None else None)
+        contrast = (classify_contrast(skin_rgb, hair_rgb)
+            if skin_rgb is not None else None)
 
         metrics = {"hue": hue, "chroma": chroma, "value": value, "contrast": contrast}
         print(f"    hue={hue}  chroma={chroma}  value={value}  contrast={contrast}")

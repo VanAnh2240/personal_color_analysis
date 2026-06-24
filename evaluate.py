@@ -1,23 +1,7 @@
 """
 evaluate.py
-Evaluation script for LaPa face-parsing models.
 
-Modes
-─────
-  seg   → run segmentation metrics on the TEST split (has labels)
-           LaPa val split has NO labels, so cannot be evaluated here.
-  full  → run the full personal-colour pipeline on portrait images
-           (segmentation → K-Means → Munsell season classification)
-  vis   → generate visual comparisons: original | pred mask | (gt mask)
-           works on test split (gt available) or val split (pred only)
-
-Usage
-─────
-  python evaluate.py --model clipunet --mode seg
-  python evaluate.py --model clipunet --mode vis --split test
-  python evaluate.py --model clipunet --mode vis --split val
-  python evaluate.py --model clipunet --mode full --img portrait.jpg
-  python evaluate.py --model clipunet --mode full --img_dir /path/to/imgs
+python evaluate.py --model clipunet
 """
 
 import argparse, os, sys, csv
@@ -28,11 +12,11 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import (CKPT_DEEPLAB, CKPT_CLIPUNET, RESULT_DIR,
-                    ACTIVE_MODEL, LAPA_CLASS_NAMES, BATCH_SIZE, NUM_WORKERS)
+                    ACTIVE_MODEL, BATCH_SIZE, NUM_WORKERS)
 from src.dataset import (
     _collect_labeled, _collect_images,
-    LapaSegDataset, LapaInferenceDataset,
-    get_val_transforms, load_single_image,
+    LapaSegDataset,
+    get_val_transforms,
     dataset_summary,
 )
 from src.metrics import SegMetrics
@@ -40,9 +24,7 @@ from preprocess  import PersonalColorPipeline
 from torch.utils.data import DataLoader
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Model loader
-# ─────────────────────────────────────────────────────────────────────────────
 def build_model(model_name: str, device: torch.device):
     if model_name == "deeplab":
         from src.models.system_1_deeplabv3 import DeepLabV3
@@ -58,7 +40,6 @@ def build_model(model_name: str, device: torch.device):
         print("Running with random weights (for debugging only).")
     else:
         state = torch.load(ckpt, map_location=device)
-        # Support both plain state-dict and wrapped checkpoints
         if isinstance(state, dict) and "model" in state:
             state = state["model"]
         model.load_state_dict(state)
@@ -67,15 +48,9 @@ def build_model(model_name: str, device: torch.device):
     return model.to(device).eval()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Mode 1: Segmentation metrics on TEST split
-# ─────────────────────────────────────────────────────────────────────────────
 @torch.no_grad()
 def evaluate_segmentation(model_name: str, device: torch.device):
-    """
-    Compute mIoU / pixel accuracy / per-class IoU on the test split.
-    LaPa test split has labels; val split does NOT → only test is used.
-    """
     model = build_model(model_name, device)
 
     te_imgs, te_lbls = _collect_labeled("test")
@@ -112,9 +87,7 @@ def evaluate_segmentation(model_name: str, device: torch.device):
     return results
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Mode 2: Visual comparison grid
-# ─────────────────────────────────────────────────────────────────────────────
 @torch.no_grad()
 def evaluate_visual(model_name: str, device: torch.device,
                     split: str = "test", n_samples: int = 20):
@@ -141,7 +114,6 @@ def evaluate_visual(model_name: str, device: torch.device,
 
     tf = get_val_transforms()
     for img_path, lbl_path in zip(imgs_p, lbls_p):
-        # Load original (un-normalised) for display
         img_bgr = cv2.imread(img_path)
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
@@ -149,7 +121,6 @@ def evaluate_visual(model_name: str, device: torch.device,
         tensor = tf(image=img_rgb)["image"].unsqueeze(0).to(device)
         pred   = model(tensor).argmax(1).squeeze(0).cpu().numpy()
 
-        # GT mask (resized to model output size)
         gt = None
         if lbl_path:
             gt_raw = cv2.imread(lbl_path, cv2.IMREAD_GRAYSCALE)
@@ -166,9 +137,7 @@ def evaluate_visual(model_name: str, device: torch.device,
     print(f"\n{len(imgs_p)} visualisations saved → {vis_dir}/")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Mode 3: Full personal-colour pipeline
-# ─────────────────────────────────────────────────────────────────────────────
 def evaluate_pipeline(model_name: str, device: torch.device,
                       img_dir: str = None, single_img: str = None):
     """Run end-to-end: image → season classification."""
@@ -226,9 +195,7 @@ def evaluate_pipeline(model_name: str, device: torch.device,
     print(f"\nPipeline results → {out_path}")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Entry point
-# ─────────────────────────────────────────────────────────────────────────────
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--model",  default=ACTIVE_MODEL,

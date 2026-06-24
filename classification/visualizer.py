@@ -11,10 +11,6 @@ if TYPE_CHECKING:
 RGB = Tuple[int, int, int]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Internal helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _brightness(rgb: RGB) -> float:
     return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
 
@@ -31,10 +27,7 @@ def _text_color(rgb: RGB) -> Tuple[int, int, int]:
     return (255, 255, 255) if _brightness(rgb) < 140 else (20, 20, 20)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Dominant strip
-# ─────────────────────────────────────────────────────────────────────────────
-
 def draw_dominants_strip(
     dominants: Dict[str, Optional[RGB]],
     total_width: int = 320,
@@ -78,10 +71,6 @@ def draw_dominants_strip(
     return strip
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Overlay
-# ─────────────────────────────────────────────────────────────────────────────
-
 def draw_result_overlay(
     face_bgr: np.ndarray,
     result,
@@ -113,11 +102,6 @@ def draw_result_overlay(
 
     return img
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MAIN: FIXED FUNCTION (NO DISK REQUIRED)
-# ─────────────────────────────────────────────────────────────────────────────
-
 def save_result_figure(
     face_bgr: np.ndarray,
     result,
@@ -135,7 +119,7 @@ def save_result_figure(
         height=90
     )
 
-    # resize helper
+
     def _fit_w(img, target):
         if img.shape[1] == target:
             return img
@@ -151,11 +135,9 @@ def save_result_figure(
         dom_strip,
     ])
 
-    # ── NEW: return image in memory ─────────────────────────────────────────
     if return_image or output_path is None:
         return figure
 
-    # ── fallback: still support old disk mode ───────────────────────────────
     cv2.imwrite(output_path, figure)
     print(f"[visualizer] Saved result figure → {output_path}")
 

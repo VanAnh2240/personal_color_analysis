@@ -1,20 +1,18 @@
 """
-config.py - Central configuration for Personal Color Segmentation System
-Covers: paths, model hyperparameters, K-Means, Munsell classification
+config.py
 """
 
 import os
 
-# ─────────────────────────────────────────────
-# Paths
-# ─────────────────────────────────────────────
+
+
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR   = os.path.join(BASE_DIR, "data")
 RAW_DIR    = os.path.join(DATA_DIR, "raw")
 PROC_DIR   = os.path.join(DATA_DIR, "processed")
 CKPT_DIR   = os.path.join(BASE_DIR, "checkpoints")
 RESULT_DIR = os.path.join(BASE_DIR, "results")
-RESULT_IMG = RESULT_DIR  # Alias for backward compatibility
+RESULT_IMG = RESULT_DIR 
 SRC_DIR    = os.path.join(BASE_DIR, "src")
 
 os.makedirs(RAW_DIR,    exist_ok=True)
@@ -22,9 +20,7 @@ os.makedirs(PROC_DIR,   exist_ok=True)
 os.makedirs(CKPT_DIR,   exist_ok=True)
 os.makedirs(RESULT_DIR, exist_ok=True)
 
-# ─────────────────────────────────────────────
-# Dataset  (LaPa)
-# ─────────────────────────────────────────────
+# Dataset 
 LAPA_NUM_CLASSES = 11        
 LAPA_CLASS_NAMES = [
     "background",   # 0
@@ -40,7 +36,6 @@ LAPA_CLASS_NAMES = [
     "hair",         # 10
 ]
 
-# Indices of regions used for pigment extraction
 PIGMENT_REGIONS = {
     "skin":      1,
     "left_eye":  4,  
@@ -51,68 +46,51 @@ PIGMENT_REGIONS = {
     "lower_lip": 9,  
 }
 
-IMG_SIZE   = (224, 224)  # H x W fed to the model
+IMG_SIZE   = (224, 224) 
 MEAN       = [0.485, 0.456, 0.406]
 STD        = [0.229, 0.224, 0.225]
 
-# ─────────────────────────────────────────────
+# ────────────────────────────────────────────
 # Training
-# ─────────────────────────────────────────────
 BATCH_SIZE    = 16
 NUM_EPOCHS    = 50
 LR            = 1e-4
 WEIGHT_DECAY  = 1e-4
-SCHEDULER     = "cosine"      # "cosine" | "step"
+SCHEDULER     = "cosine"  
 NUM_WORKERS   = 4
 SEED          = 42
-K_FOLDS       = 3             # cross-validation folds
+K_FOLDS       = 3             
 
-# ─────────────────────────────────────────────
-# Model selection
-# ─────────────────────────────────────────────
-# "deeplab" | "clipunet"
 ACTIVE_MODEL  = "clipunet"
-
-# DeepLabV3 specific
 DEEPLAB_BACKBONE     = "resnet50"
 DEEPLAB_OUTPUT_STRIDE = 16
 
-# ClipUNet specific
 CLIP_MODEL_NAME  = "ViT-B/16"
 CLIP_EMBED_DIM   = 512
-UNET_CHANNELS    = [256, 128, 64, 32]  # decoder channels per up-block
+UNET_CHANNELS    = [256, 128, 64, 32]  
 
-# ─────────────────────────────────────────────
+
 # K-Means color extraction
-# ─────────────────────────────────────────────
-KMEANS_CLUSTERS    = 5        # clusters per region
+KMEANS_CLUSTERS    = 5      
 KMEANS_MAX_ITER    = 300
 KMEANS_N_INIT      = 10
-KMEANS_COLOR_SPACE = "LAB"    # "RGB" | "LAB" | "HSV"
+KMEANS_COLOR_SPACE = "LAB"    
 
-# ─────────────────────────────────────────────
-# Munsell / Season classification
-# ─────────────────────────────────────────────
-# Season decision thresholds (hue angle in degrees on the colour wheel,
-# value=lightness 0-10, chroma=saturation 0-∞)
+#Season classification
 SEASON_RULES = {
     "Spring":  {"warm": True,  "value_min": 6.0, "chroma_min": 4.0},
     "Summer":  {"warm": False, "value_min": 5.0, "chroma_max": 6.0},
     "Autumn":  {"warm": True,  "value_max": 6.5, "chroma_max": 6.5},
     "Winter":  {"warm": False, "value_min": 4.0, "chroma_min": 6.0},
 }
-# Warm hue angle range (degrees, on the RYB/Munsell wheel)
-WARM_HUE_MIN = 0    # reds through yellows
+WARM_HUE_MIN = 0  
 WARM_HUE_MAX = 90
 
-# ─────────────────────────────────────────────
-# Checkpoint names (mirrors folder layout)
-# ─────────────────────────────────────────────
+
+# Checkpoint 
 CKPT_DEEPLAB  = os.path.join(CKPT_DIR, "system_1_deeplabv3.pth")
 CKPT_CLIPUNET = os.path.join(CKPT_DIR, "system_2_clipunet.pth")
 
 
-# ─────────────────────────────────────────────
 # API APP
-# ─────────────────────────────────────────────
 RESULT_IMG   = os.path.join(BASE_DIR, "app_img")

@@ -1,14 +1,5 @@
 """
-classification/color_utils.py  (fixed v3)
-
-Fixes vs v2:
-  - classify_hue: nhận skin_rgb (không phải lips_rgb) — paper DSCAS tính
-    subtone trên skin undertone. Anchor peach/purple giữ nguyên.
-  - classify_chroma threshold default: 127 → 60  (HSV S của da người thường
-    30-120; 127 khiến hầu hết kết quả ra "muted", bias Autumn/Summer).
-  - classify_value: skin được weight ×2 vì chiếm diện tích lớn nhất.
-  - classify_contrast threshold default: 127 → 65  (hair vs eyes chênh 127/255
-    chỉ xảy ra ở tóc đen tuyền + mắt rất sáng; 65 phân loại thực tế hơn).
+classification/color_utils.py
 """
 
 from __future__ import annotations
@@ -21,10 +12,7 @@ RGB    = Tuple[int, int, int]
 BGRArr = np.ndarray
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # 1.  Colour-space helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
 def rgb_to_lab(rgb: RGB) -> np.ndarray:
     bgr_pixel = np.uint8([[[rgb[2], rgb[1], rgb[0]]]])
     return cv2.cvtColor(bgr_pixel, cv2.COLOR_BGR2Lab)[0, 0].astype(np.float32)
@@ -44,16 +32,12 @@ def _hsv_saturation_255(rgb: RGB) -> float:
     return float(cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)[0, 0, 1])
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # 2.  Pure-numpy k-means
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _kmeans_numpy(pixels: np.ndarray, k: int,
                   max_iter: int = 50, random_state: int = 42) -> np.ndarray:
     rng = np.random.default_rng(random_state)
     N   = len(pixels)
 
-    # k-means++ init
     centers = [pixels[rng.integers(N)].copy()]
     for _ in range(1, k):
         c_arr   = np.array(centers, dtype=np.float32)
@@ -78,10 +62,7 @@ def _kmeans_numpy(pixels: np.ndarray, k: int,
     return centers
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # 3.  Dominant-colour extraction
-# ─────────────────────────────────────────────────────────────────────────────
-
 def _brightness(rgb: RGB) -> float:
     return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
 
@@ -121,79 +102,65 @@ def extract_dominant_color(
     return best_rgb
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4.  Munsell metrics
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Anchors: peach (warm undertone) vs purple (cool undertone)
-_PEACH_LAB  = rgb_to_lab((255, 230, 182))
-_PURPLE_LAB = rgb_to_lab((210, 120, 180))
-
-
 def classify_hue(skin_rgb: RGB) -> str:
     """
-    S (Subtone) metric — warm vs cool.
-
-    FIX v3: nhận skin_rgb thay vì lips_rgb.
-    Paper DSCAS tính subtone trên skin undertone (peach = warm, purple = cool).
-    Lips dễ bị ảnh hưởng bởi màu máu / son, không đại diện undertone tốt.
-
-    Returns "warm" | "cool".
+    S (Subtone/Hue) metric — warm vs cool.
     """
-    skin_lab = rgb_to_lab(skin_rgb)
-    d_peach  = lab_distance(skin_lab, _PEACH_LAB)
-    d_purple = lab_distance(skin_lab, _PURPLE_LAB)
-    return "warm" if d_peach <= d_purple else "cool"
+    lab = rgb_to_lab(skin_rgb)
+    a = float(lab[1]) - 128
+    b = float(lab[2]) - 128
+    warm_score = b - 0.5 * a
+    return "warm" if warm_score > 8 else "cool"
 
 
-def classify_chroma(skin_rgb: RGB, threshold: float = 60.0) -> str:
+def classify_chroma(
+        skin_rgb: RGB,
+        eyes_rgb: RGB,
+        lips_rgb: Optional[RGB] = None,
+        threshold: float = 130.0
+    ) -> str:
     """
-    I (Intensity / chroma) metric — bright vs muted.
-
-    HSV Saturation (0-255) của skin.
-    Returns "bright" | "muted".
-
-    FIX v3: threshold default 127 → 60.
-    Da người thường có HSV S trong khoảng 30-120; threshold 127 khiến
-    hầu hết kết quả ra "muted" (bias nặng về Autumn/Summer).
-    60 phân chia thực tế hơn: da rạng rỡ/sáng khoẻ ≥60, da trung tính/xỉn <60.
+    I (Intensity / chroma) metric: bright vs muted.
     """
-    sat = _hsv_saturation_255(skin_rgb)
-    return "bright" if sat >= threshold else "muted"
+    weights: list[float] = []
+    sats: list[float] = []
+
+    sats.append(_hsv_saturation_255(skin_rgb));  weights.append(0.50)
+    if eyes_rgb is not None:
+        sats.append(_hsv_saturation_255(eyes_rgb)); weights.append(0.30)
+    if lips_rgb is not None:
+        sats.append(_hsv_saturation_255(lips_rgb)); weights.append(0.20)
+
+    total_w = sum(weights)
+    avg_sat = sum(s * w for s, w in zip(sats, weights)) / total_w
+
+    return "bright" if avg_sat >= threshold else "muted"
 
 
 def classify_value(
     skin_rgb: RGB,
-    hair_rgb: Optional[RGB],
-    eyes_rgb: RGB,
-    threshold: float = 127.0,
+    threshold: float = 170.0,
 ) -> str:
-    # skin ×2 weight, hair ×1 , eyes ×1
-    vals = [_hsv_value_255(skin_rgb), _hsv_value_255(skin_rgb), _hsv_value_255(eyes_rgb)]
-    if hair_rgb is not None:
-        vals.append(_hsv_value_255(hair_rgb))
-    return "light" if np.mean(vals) >= threshold else "dark"
-
+    """
+    V (Value) metric — light vs dark.
+    """
+    v = _hsv_value_255(skin_rgb)
+    return "light" if v > threshold else "dark"
 
 def classify_contrast(
-    hair_rgb: Optional[RGB],
-    eyes_rgb: RGB,
-    threshold: float = 65.0,
+    skin_rgb: RGB,
+    hair_rgb:  Optional[RGB],
+    threshold: float = 70.0,
 ) -> Optional[str]:
     """
     C (Contrast) metric — high vs low.
-
-    Absolute HSV Value difference giữa hair và eyes (0-255).
-    Returns "high" | "low" | None nếu bald (hair_rgb is None).
-
-    FIX v3: threshold default 127 → 65.
-    Chênh lệch 127/255 chỉ xảy ra khi tóc đen tuyền + mắt rất sáng (hoặc ngược lại).
-    65 ≈ 25% thang HSV V — phân biệt được tóc nâu tối vs mắt nâu nhạt,
-    tóc vàng vs mắt xanh lá, v.v.
     """
     if hair_rgb is None:
         return None
-    diff = abs(_hsv_value_255(hair_rgb) - _hsv_value_255(eyes_rgb))
+    v_skin = _hsv_value_255(skin_rgb)
+    v_hair = _hsv_value_255(hair_rgb)
+
+    diff =  abs(v_skin - v_hair)
     return "high" if diff >= threshold else "low"
 
 

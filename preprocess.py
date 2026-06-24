@@ -1,11 +1,5 @@
 """
 preprocess.py
-Step 2 & 3 of the Personal Colour Pipeline:
-  Step 2: K-Means dominant colour extraction per facial region
-  Step 3: Munsell-based season classification
-
-Also exposes PersonalColorPipeline — an end-to-end object
-that wraps a trained segmentation model.
 """
 
 import os
