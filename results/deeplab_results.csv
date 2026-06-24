@@ -1,0 +1,15 @@
+metric,value
+mIoU,0.7406
+pixel_acc,0.9717
+mean_acc,0.8621
+iou_background,0.9736
+iou_skin,0.9228
+iou_left_eyebrow,0.5509
+iou_right_eyebrow,0.5489
+iou_left_eye,0.5630
+iou_right_eye,0.5584
+iou_nose,0.8995
+iou_upper_lip,0.7048
+iou_inner_mouth,0.7865
+iou_lower_lip,0.7499
+iou_hair,0.8883

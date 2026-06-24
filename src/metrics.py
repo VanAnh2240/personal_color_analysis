@@ -77,7 +77,7 @@ class DiceLoss(torch.nn.Module):
 
     def forward(self, logits: torch.Tensor,
                 targets: torch.Tensor) -> torch.Tensor:
-        probs = torch.softmax(logits, dim=1)   # (B, C, H, W)
+        probs = torch.softmax(logits, dim=1) 
         t_oh  = torch.zeros_like(probs)
         t_oh.scatter_(1, targets.unsqueeze(1), 1)
 
@@ -88,13 +88,15 @@ class DiceLoss(torch.nn.Module):
 
 
 class ComboLoss(torch.nn.Module):
-    """Cross-Entropy + Dice."""
-    def __init__(self, alpha=0.5, ignore_index=255):
+    def __init__(self, alpha=0.5, ignore_index=255, class_weights=None):
         super().__init__()
         self.alpha = alpha
-        self.ce    = torch.nn.CrossEntropyLoss(ignore_index=ignore_index)
+        self.ce    = torch.nn.CrossEntropyLoss(
+            weight=class_weights,          
+            ignore_index=ignore_index
+        )
         self.dice  = DiceLoss()
-
+ 
     def forward(self, logits, targets):
         return self.alpha * self.ce(logits, targets) + \
                (1 - self.alpha) * self.dice(logits, targets)

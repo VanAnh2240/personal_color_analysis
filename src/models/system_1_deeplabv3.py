@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from torchvision.models import resnet50, ResNet50_Weights
 from config import LAPA_NUM_CLASSES
 
-
 class ASPPConv(nn.Sequential):
     def __init__(self, in_ch: int, out_ch: int, dilation: int):
         super().__init__(
@@ -61,6 +60,7 @@ class ASPP(nn.Module):
         out = torch.cat([b(x) for b in self.branches], dim=1)
         return self.project(out)
 
+
 class DeepLabDecoder(nn.Module):
     def __init__(self, low_ch: int = 256, aspp_ch: int = 256,
                  num_classes: int = LAPA_NUM_CLASSES):
@@ -91,11 +91,13 @@ class DeepLabDecoder(nn.Module):
         return F.interpolate(x, size=target_size,
                              mode="bilinear", align_corners=False)
 
+
 class DeepLabV3(nn.Module):
     def __init__(self, num_classes: int = LAPA_NUM_CLASSES,
                  pretrained: bool = True):
         super().__init__()
 
+        # ── Encoder ──
         backbone = resnet50(
             weights=ResNet50_Weights.IMAGENET1K_V1 if pretrained else None
         )
@@ -104,10 +106,10 @@ class DeepLabV3(nn.Module):
 
         self.layer0 = nn.Sequential(backbone.conv1, backbone.bn1,
                                     backbone.relu, backbone.maxpool)
-        self.layer1 = backbone.layer1   # low-level features 
+        self.layer1 = backbone.layer1   
         self.layer2 = backbone.layer2
         self.layer3 = backbone.layer3
-        self.layer4 = backbone.layer4   # high-level features 
+        self.layer4 = backbone.layer4   
 
         self.aspp    = ASPP(in_ch=2048, out_ch=256)
         self.decoder = DeepLabDecoder(low_ch=256, aspp_ch=256,
@@ -115,7 +117,6 @@ class DeepLabV3(nn.Module):
 
     @staticmethod
     def _make_atrous(layer: nn.Module, stride: int, dilation: int):
-        """Replace strides with atrous (dilated) convolutions."""
         for m in layer.modules():
             if isinstance(m, nn.Conv2d):
                 if m.stride == (2, 2):
@@ -127,13 +128,12 @@ class DeepLabV3(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h, w = x.shape[-2:]
         x = self.layer0(x)
-        low = self.layer1(x)   
+        low = self.layer1(x)    
         x   = self.layer2(low)
         x   = self.layer3(x)
         x   = self.layer4(x)
         x   = self.aspp(x)
         return self.decoder(x, low, (h, w))
-
 
 class SegmentationLoss(nn.Module):
     def __init__(self, ignore_index: int = 255):
@@ -149,6 +149,6 @@ if __name__ == "__main__":
     model = DeepLabV3(num_classes=LAPA_NUM_CLASSES, pretrained=False)
     dummy = torch.randn(2, 3, 512, 512)
     out   = model(dummy)
-    print(f"DeepLabV3 output shape: {out.shape}")  
+    print(f"DeepLabV3 output shape: {out.shape}")
     total = sum(p.numel() for p in model.parameters()) / 1e6
     print(f"Parameters: {total:.1f}M")

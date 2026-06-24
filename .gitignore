@@ -1,6 +1,8 @@
 # Byte-compiled / optimized / DLL files
+data/
+data_lapa/
+*.zip
 __pycache__/
-checkpoints/
 *.py[cod]
 *$py.class
 
@@ -131,14 +133,10 @@ dmypy.json
 
 # Data and checkpoints (large files)
 data/
-results/
+checkpoints/
 
 # VS Code
 .vscode/
 
 # Logs
 *.log
-*.png
-*.jpg
-*.ipynb
-app_img/

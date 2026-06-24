@@ -1,5 +1,17 @@
 """
 src/dataset.py
+  data/raw/
+    train/
+      images/     *.jpg         
+      labels/     *.png         
+      landmarks/  *.txt         
+    val/
+      images/     *.jpg         
+      landmarks/  *.txt         
+    test/
+      images/     *.jpg         
+      labels/     *.png         
+      landmarks/  *.txt         
 """
 
 import os
@@ -9,12 +21,14 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from sklearn.model_selection import KFold
 
 from config import (IMG_SIZE, MEAN, STD, LAPA_NUM_CLASSES,
-                    RAW_DIR, K_FOLDS, BATCH_SIZE, NUM_WORKERS)
+                    RAW_DIR, BATCH_SIZE, NUM_WORKERS)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Augmentation pipelines
+# ─────────────────────────────────────────────────────────────────────────────
 def get_train_transforms(size=IMG_SIZE):
     return A.Compose([
         A.Resize(size[0], size[1]),
@@ -37,6 +51,9 @@ def get_val_transforms(size=IMG_SIZE):
     ])
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Landmark parser
+# ─────────────────────────────────────────────────────────────────────────────
 def parse_landmarks(txt_path: str) -> np.ndarray | None:
     if not os.path.exists(txt_path):
         return None
@@ -69,19 +86,21 @@ class LapaSegDataset(Dataset):
         return len(self.img_paths)
 
     def __getitem__(self, idx):
+        # Load image
         img = cv2.imread(self.img_paths[idx])
         if img is None:
             raise FileNotFoundError(f"Cannot read: {self.img_paths[idx]}")
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) 
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)   # (H, W, 3) uint8
 
-        lbl = cv2.imread(self.lbl_paths[idx], cv2.IMREAD_GRAYSCALE) 
+        # Load label mask
+        lbl = cv2.imread(self.lbl_paths[idx], cv2.IMREAD_GRAYSCALE)  # (H, W)
         if lbl is None:
             raise FileNotFoundError(f"Cannot read: {self.lbl_paths[idx]}")
 
         if self.transform:
             aug = self.transform(image=img, mask=lbl)
-            img = aug["image"] 
-            lbl = aug["mask"]
+            img = aug["image"]   
+            lbl = aug["mask"]    
 
         lbl = lbl.long().clamp(0, LAPA_NUM_CLASSES - 1)
         return img, lbl
@@ -105,6 +124,7 @@ class LapaInferenceDataset(Dataset):
             img = self.transform(image=img)["image"] 
 
         return img, img_path
+
 
 def _collect_labeled(split: str):
     img_dir = os.path.join(RAW_DIR, split, "images")
@@ -150,7 +170,6 @@ def _collect_images(split: str):
     print(f"  [dataset] {split}: {len(imgs)} images (no labels)")
     return imgs
 
-
 def get_dataloaders(batch_size=BATCH_SIZE, num_workers=NUM_WORKERS):
     # train — labeled
     tr_imgs, tr_lbls = _collect_labeled("train")
@@ -173,33 +192,8 @@ def get_dataloaders(batch_size=BATCH_SIZE, num_workers=NUM_WORKERS):
 
     return train_dl, val_dl, test_dl
 
-def get_kfold_dataloaders(k: int = K_FOLDS,
-                          batch_size: int = BATCH_SIZE,
-                          num_workers: int = NUM_WORKERS):
-    
-    all_imgs, all_lbls = _collect_labeled("train")
-    all_imgs = np.array(all_imgs)
-    all_lbls = np.array(all_lbls)
-
-    kf = KFold(n_splits=k, shuffle=True, random_state=42)
-    for fold, (tr_idx, va_idx) in enumerate(kf.split(all_imgs)):
-        tr_ds = LapaSegDataset(all_imgs[tr_idx].tolist(),
-                               all_lbls[tr_idx].tolist(),
-                               get_train_transforms())
-        va_ds = LapaSegDataset(all_imgs[va_idx].tolist(),
-                               all_lbls[va_idx].tolist(),
-                               get_val_transforms())
-        tr_dl = DataLoader(tr_ds, batch_size=batch_size, shuffle=True,
-                           num_workers=num_workers, pin_memory=True,
-                           drop_last=True)
-        va_dl = DataLoader(va_ds, batch_size=batch_size, shuffle=False,
-                           num_workers=num_workers, pin_memory=True)
-        print(f"  [kfold] Fold {fold+1}: "
-              f"train={len(tr_ds)}  val={len(va_ds)}")
-        yield fold, tr_dl, va_dl
-
-
 def load_single_image(img_path: str, size=IMG_SIZE):
+    """Load and preprocess one image → (1, 3, H, W) float tensor."""
     img = cv2.imread(img_path)
     if img is None:
         raise FileNotFoundError(img_path)
@@ -209,6 +203,7 @@ def load_single_image(img_path: str, size=IMG_SIZE):
 
 
 def dataset_summary():
+    """Print a quick summary of all splits (for debugging in Colab)."""
     print("\nLaPa Dataset Summary")
     print("=" * 48)
     for split in ("train", "val", "test"):
