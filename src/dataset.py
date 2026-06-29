@@ -25,10 +25,6 @@ from albumentations.pytorch import ToTensorV2
 from config import (IMG_SIZE, MEAN, STD, LAPA_NUM_CLASSES,
                     RAW_DIR, BATCH_SIZE, NUM_WORKERS)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Augmentation pipelines
-# ─────────────────────────────────────────────────────────────────────────────
 def get_train_transforms(size=IMG_SIZE):
     return A.Compose([
         A.Resize(size[0], size[1]),
@@ -193,7 +189,6 @@ def get_dataloaders(batch_size=BATCH_SIZE, num_workers=NUM_WORKERS):
     return train_dl, val_dl, test_dl
 
 def load_single_image(img_path: str, size=IMG_SIZE):
-    """Load and preprocess one image → (1, 3, H, W) float tensor."""
     img = cv2.imread(img_path)
     if img is None:
         raise FileNotFoundError(img_path)
@@ -203,7 +198,6 @@ def load_single_image(img_path: str, size=IMG_SIZE):
 
 
 def dataset_summary():
-    """Print a quick summary of all splits (for debugging in Colab)."""
     print("\nLaPa Dataset Summary")
     print("=" * 48)
     for split in ("train", "val", "test"):
@@ -220,7 +214,3 @@ def dataset_summary():
               f"labels={has_lbl:10s}  "
               f"landmarks={n_lmks:6d}")
     print("=" * 48)
-    print("  train → supervised training  (image + label)")
-    print("  val   → visual inspection only (image only, NO label)")
-    print("  test  → final mIoU evaluation (image + label)")
-    print()

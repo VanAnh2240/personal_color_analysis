@@ -10,7 +10,7 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import (CKPT_DEEPLAB, CKPT_CLIPUNET, RESULT_DIR,
-                    ACTIVE_MODEL, LAPA_CLASS_NAMES, BATCH_SIZE, NUM_WORKERS)
+                    ACTIVE_MODEL, BATCH_SIZE, NUM_WORKERS)
 from src.dataset import (
     _collect_labeled, _collect_images,
     LapaSegDataset, LapaInferenceDataset,
@@ -35,7 +35,6 @@ def build_model(model_name: str, device: torch.device):
         print("Running with random weights (for debugging only).")
     else:
         state = torch.load(ckpt, map_location=device)
-        # Support both plain state-dict and wrapped checkpoints
         if isinstance(state, dict) and "model" in state:
             state = state["model"]
         model.load_state_dict(state)
