@@ -10,7 +10,7 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import (CKPT_DEEPLAB, CKPT_CLIPUNET, RESULT_DIR,
-                    ACTIVE_MODEL, LAPA_CLASS_NAMES, BATCH_SIZE, NUM_WORKERS)
+                    ACTIVE_MODEL, BATCH_SIZE, NUM_WORKERS)
 from src.dataset import (
     _collect_labeled, _collect_images,
     LapaSegDataset, LapaInferenceDataset,
