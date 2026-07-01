@@ -12,7 +12,7 @@ RGB    = Tuple[int, int, int]
 BGRArr = np.ndarray
 
 
-# 1.  Colour-space helpers
+# 1.  Colour-space
 def rgb_to_lab(rgb: RGB) -> np.ndarray:
     bgr_pixel = np.uint8([[[rgb[2], rgb[1], rgb[0]]]])
     return cv2.cvtColor(bgr_pixel, cv2.COLOR_BGR2Lab)[0, 0].astype(np.float32)
